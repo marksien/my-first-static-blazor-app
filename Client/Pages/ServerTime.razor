@@ -1,7 +1,60 @@
-﻿<p>
+﻿@implements IDisposable
+
+@* <p>
     Server Time is : @t
 </p>
 
 @code {
     string t = DateTime.Now.ToLongTimeString();
+} *@
+
+<p>
+    @* Server Time is : @GetTime() *@
+    Server Time is : @timeNow
+</p>
+
+@code {
+
+    [Parameter]
+    public string format { get; set; }
+    public string timeNow { get; set; }
+
+    private string GetTime()
+    {
+
+        return DateTime.Now.ToString(format);
+    }
+
+    CancellationTokenSource? pollingCancellationToken;
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        PollForUpdates();
+    }
+
+    private async void PollForUpdates()
+    {
+        pollingCancellationToken = new CancellationTokenSource();
+        while (!pollingCancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                StateHasChanged();
+                timeNow = GetTime();
+                await Task.Delay(1000);
+            }
+            catch (Exception ex)
+            {
+                pollingCancellationToken.Cancel();
+                Console.Error.WriteLine(ex);
+                StateHasChanged();
+            }
+        }
+    }
+
+    void IDisposable.Dispose()
+    {
+        pollingCancellationToken?.Cancel();
+    }
 }
