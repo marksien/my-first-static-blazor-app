@@ -1,6 +1,7 @@
 ﻿@page "/fetchdata"
 @using BlazorApp.Shared 
 @inject HttpClient Http
+@attribute [StreamRendering]
 
 <PageTitle>Weather</PageTitle>
 
@@ -14,7 +15,7 @@
 }
 else
 {
-    <table class="table">
+    @* <table class="table">
         <thead>
             <tr>
                 <th>Date</th>
@@ -34,21 +35,52 @@ else
                 </tr>
             }
         </tbody>
-    </table>
+    </table> *@
+    <!-- This page is rendered in SSR mode, so the FluentDataGrid component does not offer any interactivity (like sorting). -->
+    <FluentDataGrid Id="weathergrid" Virtualize="true" Items="@forecasts" GridTemplateColumns="1fr 1fr 1fr 2fr" TGridItem="WeatherForecast">
+        <PropertyColumn Title="Date" Sortable="true" Property="@(c => c!.Date)" Align="Align.Start" />
+        <PropertyColumn Title="Temp. (C)" Sortable="true" Property="@(c => c!.TemperatureC)" Align="Align.Center" />
+        <PropertyColumn Title="Temp. (F)" Sortable="true" Property="@(c => c!.TemperatureF)" Align="Align.Center" />
+        <PropertyColumn Title="Summary" Sortable="true" Property="@(c => c!.Summary)" Align="Align.End" />
+    </FluentDataGrid>
 }
 
 @code {
-    private WeatherForecast[] forecasts = new WeatherForecast[]{};
+    // private WeatherForecast[] forecasts = new WeatherForecast[]{};
+
+    // protected override async Task OnInitializedAsync()
+    // {
+    //     try
+    //     {
+    //         forecasts = await Http.GetFromJsonAsync<WeatherForecast[]>("/api/WeatherForecast") ?? new WeatherForecast[]{};
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         Console.WriteLine(ex.ToString());
+    //     }
+    // }
+    private IQueryable<WeatherForecast>? forecasts;
 
     protected override async Task OnInitializedAsync()
     {
-        try
-        {
-            forecasts = await Http.GetFromJsonAsync<WeatherForecast[]>("/api/WeatherForecast") ?? new WeatherForecast[]{};
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine(ex.ToString());
-        }
+        // Simulate asynchronous loading to demonstrate streaming rendering
+        await Task.Delay(500);
+
+        var startDate = DateOnly.FromDateTime(DateTime.Now);
+        var summaries = new[] { "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching" };
+        forecasts = Enumerable.Range(1, 50).Select(index => new WeatherForecast
+            {
+                Date = startDate.AddDays(index),
+                TemperatureC = Random.Shared.Next(-20, 55),
+                Summary = summaries[Random.Shared.Next(summaries.Length)]
+            }).AsQueryable();
+    }
+
+    private class WeatherForecast
+    {
+        public DateOnly Date { get; set; }
+        public int TemperatureC { get; set; }
+        public string? Summary { get; set; }
+        public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
     }
 }
